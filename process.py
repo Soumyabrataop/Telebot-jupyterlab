@@ -50,16 +50,12 @@ def generate_embeddings_for_texts(texts: List[str], api_key: str) -> np.ndarray:
 def run_async_safely(coro):
     """Run async function safely, handling Jupyter notebook event loops"""
     try:
-        # Try to get the running loop
-        loop = asyncio.get_running_loop()
-        # If we're in a running loop (like Jupyter), create a new task
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(asyncio.run, coro)
-            return future.result()
-    except RuntimeError:
-        # No running loop, use asyncio.run() normally
+        import nest_asyncio
+        nest_asyncio.apply()
         return asyncio.run(coro)
+    except:
+        # Fallback to sync method
+        return None
 
 # Add async embedding generation for better performance
 async def generate_embeddings_async(texts: List[str], api_key: str) -> np.ndarray:
@@ -219,10 +215,12 @@ def load_and_process_documents(docs_dir: Path, api_key: str) -> Tuple[np.ndarray
     if not chunks:
         return np.array([]), [], []
     
-    # Use async embedding generation for better performance
-    # Handle Jupyter notebook event loop compatibility
+    # Try async embedding generation with better error handling
     try:
         embeddings = run_async_safely(generate_embeddings_async(chunks, api_key))
+        # If async returns None (failed), fall back to sync
+        if embeddings is None:
+            embeddings = generate_embeddings_for_texts(chunks, api_key)
     except Exception:
         # Fall back to synchronous method if async fails
         embeddings = generate_embeddings_for_texts(chunks, api_key)
