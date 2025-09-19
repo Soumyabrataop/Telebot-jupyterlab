@@ -11,14 +11,16 @@ from pathlib import Path
 from typing import List, Tuple, Dict
 
 _openai_client = None
+_current_api_key = None
 
 def get_openai_client(api_key: str):
-    global _openai_client
-    if _openai_client is None:
+    global _openai_client, _current_api_key
+    if _openai_client is None or _current_api_key != api_key:
         _openai_client = openai.OpenAI(
             base_url="https://api.sambanova.ai/v1",
             api_key=api_key,
         )
+        _current_api_key = api_key
     return _openai_client
 
 def generate_embeddings_for_texts(texts: List[str], api_key: str) -> np.ndarray:
