@@ -80,10 +80,8 @@ def load_embeddings_cache_force(docs_dir: Path) -> Tuple[bool, Dict]:
     try:
         with open(cache_path, 'rb') as f:
             cache_data = pickle.load(f)
-        print(f"Force-loaded cache with {len(cache_data.get('chunks', []))} chunks")
         return True, cache_data
     except Exception as e:
-        print(f"Error force-loading cache: {e}")
         return False, {"error": str(e)}
 
 
@@ -103,11 +101,8 @@ def load_embeddings_cache(docs_dir: Path) -> Tuple[bool, Dict]:
         if cached_hash == current_hash:
             return True, cache_data
         else:
-            # Hash mismatch - documents may have changed
-            print(f"Cache hash mismatch. Cached: {cached_hash}, Current: {current_hash}")
             return False, {"hash_mismatch": True, "cached_hash": cached_hash, "current_hash": current_hash}
     except Exception as e:
-        print(f"Error loading cache: {e}")
         return False, {"error": str(e)}
 
 
@@ -126,17 +121,8 @@ def get_cached_embeddings(docs_dir: Path, force_load: bool = False) -> Tuple[np.
         _cached_embeddings = cache_data['embeddings']
         _cached_chunks = cache_data['chunks']
         _cached_metadata = cache_data['metadata']
-        print(f"Successfully loaded cached embeddings: {len(_cached_chunks)} chunks")
         return _cached_embeddings, _cached_chunks, _cached_metadata
 
-    # Cache not valid - provide diagnostic info
-    if cache_data.get("hash_mismatch"):
-        print("Cache invalid due to hash mismatch - documents may have been updated")
-    elif cache_data.get("error"):
-        print(f"Cache loading error: {cache_data['error']}")
-    else:
-        print("Cache file not found or empty")
-    
     return np.array([]), [], []
 
 
@@ -207,15 +193,10 @@ def call_sambanova_chat(prompt: str, api_key: str) -> str:
 
     if embeddings.size == 0:
         # Try force loading the cache (ignore hash mismatch)
-        print("Trying to force-load cache...")
         embeddings, chunks, metadata = get_cached_embeddings(docs_path, force_load=True)
         
         if embeddings.size == 0:
-            cache_path = docs_path / "embeddings_cache.pkl"
-            if cache_path.exists():
-                return "Error: Cache file exists but couldn't load embeddings. The cache file may be corrupted. Please run the crawler.py script to regenerate the cache."
-            else:
-                return f"Error: No cached embeddings found. Cache path: {cache_path}, exists: {cache_path.exists()}"
+            return "Error: No cached embeddings found. Please ensure embeddings_cache.pkl exists."
 
     index = get_cached_faiss_index(embeddings)
     if index is None:
