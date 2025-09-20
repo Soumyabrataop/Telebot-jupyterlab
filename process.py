@@ -152,11 +152,27 @@ def search_documents(query: str, index: faiss.Index, chunks: List[str], metadata
 
 
 def call_sambanova_chat(prompt: str, api_key: str) -> str:
-    docs_path = Path("telebot_docs")
+    # Try multiple strategies to find the telebot_docs directory
+    possible_paths = [
+        Path(__file__).parent / "telebot_docs",  # Relative to script location
+        Path.cwd() / "telebot_docs",              # Relative to current working directory
+        Path("telebot_docs"),                     # Simple relative path
+    ]
+    
+    docs_path = None
+    for path in possible_paths:
+        if path.exists() and path.is_dir():
+            docs_path = path
+            break
+    
+    if docs_path is None:
+        return f"Error: telebot_docs directory not found. Tried paths: {[str(p) for p in possible_paths]}. Current working directory: {Path.cwd()}"
+    
     embeddings, chunks, metadata = get_cached_embeddings(docs_path)
 
     if embeddings.size == 0:
-        return "Error: No cached embeddings found. Please ensure embeddings_cache.pkl exists."
+        cache_path = docs_path / "embeddings_cache.pkl"
+        return f"Error: No cached embeddings found. Cache path: {cache_path}, exists: {cache_path.exists()}"
 
     index = get_cached_faiss_index(embeddings)
     if index is None:
